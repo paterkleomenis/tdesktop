@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <optional>
+
 namespace Ui {
 } // namespace Ui
 
@@ -22,6 +24,7 @@ public:
 	virtual QString chooseSourceActiveDeviceId() = 0;
 	virtual bool chooseSourceActiveWithAudio() = 0;
 	virtual bool chooseSourceWithAudioSupported() = 0;
+	virtual std::optional<QString> chooseSourceUniqueId() = 0;
 	virtual rpl::lifetime &chooseSourceInstanceLifetime() = 0;
 	virtual void chooseSourceAccepted(
 		const QString &deviceId,

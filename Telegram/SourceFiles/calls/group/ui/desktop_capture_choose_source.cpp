@@ -99,6 +99,7 @@ private:
 	void setupSourcesGeometry();
 	void updateButtonsVisibility();
 	void destroy();
+	[[nodiscard]] bool isUniqueSourceMode() const;
 
 	static base::flat_map<
 		not_null<ChooseSourceDelegate*>,
@@ -117,6 +118,7 @@ private:
 	std::vector<std::unique_ptr<Source>> _sources;
 	Source *_selected = nullptr;
 	QString _selectedId;
+	std::optional<QString> _uniqueSourceId;
 
 };
 
@@ -445,12 +447,24 @@ void ChooseSourceProcess::setupSources() {
 	setupSourcesGeometry();
 }
 
+bool ChooseSourceProcess::isUniqueSourceMode() const {
+	return _uniqueSourceId.has_value();
+}
+
 void ChooseSourceProcess::fillSources() {
+	_withAudio->setVisible(_delegate->chooseSourceWithAudioSupported());
+	_uniqueSourceId = _delegate->chooseSourceUniqueId();
+	if (_uniqueSourceId.has_value()) {
+		_selectedId = *_uniqueSourceId;
+		const auto sharing = !_delegate->chooseSourceActiveDeviceId().isEmpty();
+		_finish->setVisible(sharing);
+		_submit->setVisible(!sharing);
+		return;
+	}
+
 	using Type = tgcalls::DesktopCaptureType;
 	auto screensManager = tgcalls::DesktopCaptureSourceManager(Type::Screen);
 	auto windowsManager = tgcalls::DesktopCaptureSourceManager(Type::Window);
-
-	_withAudio->setVisible(_delegate->chooseSourceWithAudioSupported());
 
 	auto screenIndex = 0;
 	auto windowIndex = 0;
@@ -501,6 +515,23 @@ void ChooseSourceProcess::fillSources() {
 }
 
 void ChooseSourceProcess::updateButtonsVisibility() {
+	if (isUniqueSourceMode()) {
+		const auto sharing = !_delegate->chooseSourceActiveDeviceId().isEmpty();
+		if (sharing) {
+			if (_withAudio->checked() != _delegate->chooseSourceActiveWithAudio()) {
+				_finish->setVisible(false);
+				_submit->setVisible(true);
+			} else {
+				_finish->setVisible(true);
+				_submit->setVisible(false);
+			}
+		} else {
+			_finish->setVisible(false);
+			_submit->setVisible(true);
+		}
+		return;
+	}
+
 	const auto selectedId = _selected
 		? _selected->deviceIdKey()
 		: QString();
@@ -520,7 +551,25 @@ void ChooseSourceProcess::updateButtonsVisibility() {
 
 void ChooseSourceProcess::setupSourcesGeometry() {
 	if (_sources.empty()) {
-		destroy();
+		if (!isUniqueSourceMode()) {
+			destroy();
+			return;
+		}
+		const auto skips = st::desktopCaptureSourceSkips;
+		const auto margins = st::desktopCaptureMargins;
+		const auto padding = st::desktopCapturePadding;
+		const auto bottomSkip = margins.right() + padding.right();
+		const auto bottomHeight = 2 * bottomSkip
+			+ st::desktopCaptureCancel.height;
+		const auto width = margins.left()
+			+ kColumns * st::desktopCaptureSourceSize.width()
+			+ (kColumns - 1) * skips.width()
+			+ margins.right();
+		const auto height = bottomHeight + st::lineWidth;
+		_fixedSize = QSize(width, height);
+		_window->setFixedSize(_fixedSize);
+		_bottom->setGeometry(0, st::lineWidth, width, bottomHeight);
+		_scroll->hide();
 		return;
 	}
 	_inner->widthValue(

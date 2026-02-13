@@ -198,6 +198,7 @@ private:
 	QString chooseSourceActiveDeviceId() override;
 	bool chooseSourceActiveWithAudio() override;
 	bool chooseSourceWithAudioSupported() override;
+	std::optional<QString> chooseSourceUniqueId() override;
 	rpl::lifetime &chooseSourceInstanceLifetime() override;
 	void chooseSourceAccepted(
 		const QString &deviceId,
